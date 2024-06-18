@@ -58,13 +58,15 @@ func (s *EchoServer) Start() {
 
 	s.app.GET("/v1/health", s.healthCheck)
 	s.initOAuth2Router()
-	s.initItemShopRouter()
+	s.initItemShopRouter(authMiddleware)
 	s.initItemManagingRouter(authMiddleware)
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	go s.gracefullyShutdown(ch)
 	s.listenAndServe()
+	s.initPlayerCoinRouter(authMiddleware)
+	s.initInventoryRouter(authMiddleware)
 }
 
 func (s *EchoServer) listenAndServe() {

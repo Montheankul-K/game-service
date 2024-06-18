@@ -5,6 +5,7 @@ import (
 	"github.com/Montheankul-K/game-service/pkg/custom"
 	itemManagingModel "github.com/Montheankul-K/game-service/pkg/itemManaging/model"
 	itemManagingService "github.com/Montheankul-K/game-service/pkg/itemManaging/service"
+	"github.com/Montheankul-K/game-service/pkg/validation"
 	"github.com/labstack/echo/v4"
 	"net/http"
 	"strconv"
@@ -21,12 +22,18 @@ func NewItemManagingController(itemManagingService itemManagingService.IItemMana
 }
 
 func (c *itemManagingController) Creating(ctx echo.Context) error {
-	itemCreatingReq := new(itemManagingModel.ItemCreatingReq)
-	customEchoRequest := custom.NewCustomEchoRequest(ctx)
-	if err := customEchoRequest.Bind(itemCreatingReq); err != nil {
+	adminID, err := validation.AdminIDGetting(ctx)
+	if err != nil {
 		return custom.Error(ctx, http.StatusBadRequest, err.Error())
 	}
 
+	itemCreatingReq := new(itemManagingModel.ItemCreatingReq)
+	customEchoRequest := custom.NewCustomEchoRequest(ctx)
+	if err = customEchoRequest.Bind(itemCreatingReq); err != nil {
+		return custom.Error(ctx, http.StatusBadRequest, err.Error())
+	}
+
+	itemCreatingReq.AdminID = adminID
 	item, err := c.itemManagingService.Creating(itemCreatingReq)
 	if err != nil {
 		return custom.Error(ctx, http.StatusInternalServerError, err.Error())

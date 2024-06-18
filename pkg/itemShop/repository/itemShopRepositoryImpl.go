@@ -6,6 +6,7 @@ import (
 	itemShopException "github.com/Montheankul-K/game-service/pkg/itemShop/exception"
 	itemShopModel "github.com/Montheankul-K/game-service/pkg/itemShop/model"
 	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 )
 
 type itemShopRepositoryImpl struct {
@@ -18,6 +19,19 @@ func NewItemShopRepositoryImpl(db databases.Database, logger echo.Logger) IItemS
 		db:     db,
 		logger: logger,
 	}
+}
+
+func (r *itemShopRepositoryImpl) TransactionBegin() *gorm.DB {
+	tx := r.db.Connect()
+	return tx.Begin()
+}
+
+func (r *itemShopRepositoryImpl) TransactionRollback(tx *gorm.DB) error {
+	return tx.Rollback().Error
+}
+
+func (r *itemShopRepositoryImpl) TransactionCommit(tx *gorm.DB) error {
+	return tx.Commit().Error
 }
 
 func (r *itemShopRepositoryImpl) Listing(itemFilter *itemShopModel.ItemFilter) ([]*entities.Item, error) {
@@ -64,4 +78,27 @@ func (r *itemShopRepositoryImpl) FindByID(itemID uint64) (*entities.Item, error)
 		}
 	}
 	return item, nil
+}
+
+func (r *itemShopRepositoryImpl) FindByIDList(itemIDs []uint64) ([]*entities.Item, error) {
+	item := make([]*entities.Item, len(itemIDs))
+	if err := r.db.Connect().Model(&entities.Item{}).Where("id IN (?)", itemIDs).Find(&item).Error; err != nil {
+		r.logger.Errorf("failed to find items by ID list: %s", err.Error())
+		return nil, &itemShopException.ItemListing{}
+	}
+	return item, nil
+}
+
+func (r *itemShopRepositoryImpl) PurchaseHistoryRecording(tx *gorm.DB, purchasingEntity *entities.PurchaseHistory) (*entities.PurchaseHistory, error) {
+	conn := r.db.Connect()
+	if tx != nil {
+		conn = tx
+	}
+
+	insertedPurchasing := new(entities.PurchaseHistory)
+	if err := conn.Create(purchasingEntity).Error; err != nil {
+		r.logger.Errorf("failed to record purchase history: %s", err.Error())
+		return nil, &itemShopException.HistoryOfPurchaseRecording{}
+	}
+	return insertedPurchasing, nil
 }
